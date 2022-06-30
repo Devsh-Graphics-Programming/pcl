@@ -23,6 +23,10 @@ if("${CMAKE_BUILD_TYPE}" STREQUAL "")
   set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "build type default to RelWithDebInfo, set to Release to improve performance" FORCE)
 endif()
 
+set(PCL_SHARED_LIBS ON CACHE BOOL "" FORCE) # shared build is a way, otherwise too many errors
+set(WITH_VTK OFF CACHE BOOL "" FORCE)
+set(WITH_QT OFF CACHE BOOL "" FORCE)
+
 project(PCL VERSION 1.13.0)
 string(TOLOWER ${PROJECT_NAME} PROJECT_NAME_LOWER)
 
@@ -314,14 +318,29 @@ endif()
 find_package(Threads REQUIRED)
 
 # Eigen (required)
+# PATCH: Build system needs to pass PC_EIGEN_INCLUDE_DIRS variable to make it search-able
+if(NOT DEFINED PC_EIGEN_INCLUDE_DIRS)
+	message(FATAL_ERROR "PATCH: PC_EIGEN_INCLUDE_DIRS is required!")
+endif()
+
 find_package(Eigen 3.3 REQUIRED)
 include_directories(SYSTEM ${EIGEN_INCLUDE_DIRS})
 
 # FLANN (required)
-find_package(FLANN 1.9.1 REQUIRED)
-if(NOT (${FLANN_LIBRARY_TYPE} MATCHES ${PCL_FLANN_REQUIRED_TYPE}) AND NOT (${PCL_FLANN_REQUIRED_TYPE} MATCHES "DONTCARE"))
-  message(FATAL_ERROR "Flann was selected with ${PCL_FLANN_REQUIRED_TYPE} but found as ${FLANN_LIBRARY_TYPE}")
+# PATCH: manually set flann.pc variables and make it work with build system
+if(NOT DEFINED _PATCHED_FLANN_INSTALL_DIR_)
+	message(FATAL_ERROR "PATCH: _PATCHED_FLANN_INSTALL_DIR_ is required!")
 endif()
+set(FLANN_FOUND 1)
+set(FLANN_INCLUDE_DIRS ${_PATCHED_FLANN_INSTALL_DIR_}/include)
+set(FLANN_LIBRARY_DIRS ${_PATCHED_FLANN_INSTALL_DIR_}/lib)
+set(FLANN_LIBRARIES ${FLANN_LIBRARY_DIRS}/flann_cpp_s.lib)
+
+include_directories(${FLANN_INCLUDE_DIRS})
+
+# Create interface library that effectively becomes an alias for the appropriate (static/dynamic) imported FLANN target
+add_library(FLANN::FLANN INTERFACE IMPORTED)
+set_property(TARGET FLANN::FLANN APPEND PROPERTY INTERFACE_LINK_LIBRARIES ${FLANN_LIBRARIES})
 
 # libusb
 option(WITH_LIBUSB "Build USB RGBD-Camera drivers" TRUE)
@@ -409,7 +428,14 @@ if(WITH_OPENGL)
 endif()
 
 # Boost (required)
+# PATCH: Build system needs to pass Boost_DIR variable to make it search-able
+if(NOT DEFINED Boost_DIR)
+	message(FATAL_ERROR "PATCH: Boost_DIR is required!")
+endif()
+
+set(CMAKE_FIND_PACKAGE_PREFER_CONFIG TRUE)
 include("${PCL_SOURCE_DIR}/cmake/pcl_find_boost.cmake")
+set(CMAKE_FIND_PACKAGE_PREFER_CONFIG FALSE)
 
 ### ---[ Create the config.h file
 set(pcl_config_h_in "${CMAKE_CURRENT_SOURCE_DIR}/pcl_config.h.in")
