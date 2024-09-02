@@ -39,6 +39,7 @@ using std::cout;
 using std::cerr;
 
 #include <pcl/range_image/range_image_planar.h>
+#include <cassert>
 
 namespace pcl 
 {

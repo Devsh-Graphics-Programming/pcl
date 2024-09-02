@@ -40,6 +40,7 @@
 #pragma once
 
 #include <bitset>
+#include <cassert>
 
 
 /**
